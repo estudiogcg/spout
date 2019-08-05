@@ -83,7 +83,8 @@ EOD;
         XLSXEscaper $stringsEscaper,
         StringHelper $stringHelper,
         InternalEntityFactory $entityFactory
-    ) {
+    )
+    {
         $this->shouldUseInlineStrings = $optionsManager->getOption(Options::SHOULD_USE_INLINE_STRINGS);
         $this->rowManager = $rowManager;
         $this->styleManager = $styleManager;
@@ -105,7 +106,7 @@ EOD;
     /**
      * {@inheritdoc}
      */
-    public function startSheet(Worksheet $worksheet)
+    public function startSheet(Worksheet $worksheet, $colWidth = null)
     {
         $sheetFilePointer = fopen($worksheet->getFilePath(), 'w');
         $this->throwIfSheetFilePointerIsNotAvailable($sheetFilePointer);
@@ -113,6 +114,13 @@ EOD;
         $worksheet->setFilePointer($sheetFilePointer);
 
         fwrite($sheetFilePointer, self::SHEET_XML_FILE_HEADER);
+
+        if (is_array($colWidth)) {
+            foreach ($colWidth AS $col) {
+                fwrite($sheetFilePointer, '<cols><col min="' . $col['min'] . '" max="' . $col['max'] . '" width="' . $col['width'] . '" customWidth="1"/></cols>');
+            }
+        }
+
         fwrite($sheetFilePointer, '<sheetData>');
     }
 
@@ -214,19 +222,24 @@ EOD;
 
         if ($cell->isString()) {
             $cellXML .= $this->getCellXMLFragmentForNonEmptyString($cell->getValue());
-        } elseif ($cell->isBoolean()) {
-            $cellXML .= ' t="b"><v>' . (int) ($cell->getValue()) . '</v></c>';
-        } elseif ($cell->isNumeric()) {
+        }
+        elseif ($cell->isBoolean()) {
+            $cellXML .= ' t="b"><v>' . (int)($cell->getValue()) . '</v></c>';
+        }
+        elseif ($cell->isNumeric()) {
             $cellXML .= '><v>' . $cell->getValue() . '</v></c>';
-        } elseif ($cell->isEmpty()) {
+        }
+        elseif ($cell->isEmpty()) {
             if ($this->styleManager->shouldApplyStyleOnEmptyCell($styleId)) {
                 $cellXML .= '/>';
-            } else {
+            }
+            else {
                 // don't write empty cells that do no need styling
                 // NOTE: not appending to $cellXML is the right behavior!!
                 $cellXML = '';
             }
-        } else {
+        }
+        else {
             throw new InvalidArgumentException('Trying to add a value with an unsupported type: ' . gettype($cell->getValue()));
         }
 
@@ -248,7 +261,8 @@ EOD;
 
         if ($this->shouldUseInlineStrings) {
             $cellXMLFragment = ' t="inlineStr"><is><t>' . $this->stringsEscaper->escape($cellValue) . '</t></is></c>';
-        } else {
+        }
+        else {
             $sharedStringId = $this->sharedStringsManager->writeString($cellValue);
             $cellXMLFragment = ' t="s"><v>' . $sharedStringId . '</v></c>';
         }
